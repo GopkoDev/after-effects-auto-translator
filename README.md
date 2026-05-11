@@ -31,31 +31,30 @@ Translated layers are placed directly above the source layer, disabled by defaul
 
 ## API Limits
 
-| Mode | Limit |
-|------|-------|
-| Anonymous (no email) | 5,000 chars/day |
+| Mode                    | Limit            |
+| ----------------------- | ---------------- |
+| Anonymous (no email)    | 5,000 chars/day  |
 | With email (`de` param) | 50,000 chars/day |
 
 Enter your email in the **API Email** panel on first launch. No account needed — MyMemory uses it only as a usage identifier.
 
 ## Requirements
 
-- After Effects CC or later
 - macOS (curl is built-in)
 - Windows 10 build 17063+ (curl is built-in); older Windows requires [curl](https://curl.se/windows/) installed manually
 
 ## Languages
 
-| Code | Language | Layer color |
-|------|----------|-------------|
-| ES | Spanish | Brown |
-| PT | Portuguese | Green |
-| IT | Italian | Aqua |
-| DE | German | Yellow |
-| FR | French | Blue |
-| PL | Polish | Pink |
-| TR | Turkish | Orange |
-| UA | Ukrainian | Lavender |
+| Code | Language   | Layer color |
+| ---- | ---------- | ----------- |
+| ES   | Spanish    | Brown       |
+| PT   | Portuguese | Green       |
+| IT   | Italian    | Aqua        |
+| DE   | German     | Yellow      |
+| FR   | French     | Blue        |
+| PL   | Polish     | Pink        |
+| TR   | Turkish    | Orange      |
+| UA   | Ukrainian  | Lavender    |
 
 ## License
 

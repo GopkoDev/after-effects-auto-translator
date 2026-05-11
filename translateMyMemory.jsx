@@ -1,8 +1,3 @@
-// ============================================================
-// AUTO TRANSLATOR — MyMemory | ScriptUI Panel
-// Install: Scripts/ScriptUI Panels/ → restart AE
-// ============================================================
-
 (function (thisObj) {
   var LANGS = [
     { code: 'es', id: 'ES', name: 'Іспанська', color: 12 }, // Brown
