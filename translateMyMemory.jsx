@@ -158,6 +158,31 @@
     return found;
   }
 
+  // ── Text layer collection (recurses into selected Pre-compose layers) ──
+  // At the top level only selected layers count (existing behavior). Once
+  // inside a Pre-compose, every text layer and nested Pre-compose is taken
+  // regardless of its own selection state, since the parent selection
+  // already expresses intent to translate everything inside it.
+  function collectSourceLayers(comp, out, visited, topLevel) {
+    for (var l = 1; l <= comp.layers.length; l++) {
+      var layer = comp.layers[l];
+      if (layer instanceof TextLayer) {
+        if (layer.comment && layer.comment.indexOf('TRANSLATED:') === 0)
+          continue;
+        if (topLevel && !layer.selected) continue;
+        out.push({ layer: layer, comp: comp });
+        continue;
+      }
+      if (layer.source instanceof CompItem) {
+        if (topLevel && !layer.selected) continue;
+        var srcComp = layer.source;
+        if (visited[srcComp.id]) continue;
+        visited[srcComp.id] = true;
+        collectSourceLayers(srcComp, out, visited, false);
+      }
+    }
+  }
+
   function showConflictDialog(langIds) {
     var dlg = new Window('dialog', 'Переклади вже існують');
     dlg.orientation = 'column';
@@ -389,16 +414,13 @@
       return out;
     }
 
+    // Returns [{ layer, comp }] — comp is the layer's own containing comp,
+    // which may be a Pre-compose nested arbitrarily deep under the active comp.
     function getSourceLayers(comp) {
       var out = [];
-      for (var l = 1; l <= comp.layers.length; l++) {
-        var layer = comp.layers[l];
-        if (!(layer instanceof TextLayer)) continue;
-        if (layer.comment && layer.comment.indexOf('TRANSLATED:') === 0)
-          continue;
-        if (!layer.selected) continue;
-        out.push(layer);
-      }
+      var visited = {};
+      visited[comp.id] = true;
+      collectSourceLayers(comp, out, visited, true);
       return out;
     }
 
@@ -441,10 +463,13 @@
         return;
       }
 
-      var srcLayers = getSourceLayers(comp);
-      if (!srcLayers.length) {
+      var srcEntries = getSourceLayers(comp);
+      if (!srcEntries.length) {
         setStatus('⚠ Виділи текстові шари');
-        showError(['Виділи текстові шари!']);
+        showError([
+          'Виділи текстові шари',
+          '(або Pre-compose з текстовими шарами всередині)!',
+        ]);
         return;
       }
 
@@ -455,12 +480,12 @@
         return;
       }
 
-      for (var vi = 0; vi < srcLayers.length; vi++) {
-        var vtext = srcLayers[vi].property('Source Text').value.text;
+      for (var vi = 0; vi < srcEntries.length; vi++) {
+        var vtext = srcEntries[vi].layer.property('Source Text').value.text;
         if (hasHardCut(vtext)) {
           setStatus('❌ Текст містить рядок > 500 символів без пробілу');
           showError([
-            'Шар "' + srcLayers[vi].name + '"',
+            'Шар "' + srcEntries[vi].layer.name + '"',
             'містить рядок довший за 500 символів без пробілів.',
             'Скоротіть текст і спробуйте знову.',
           ]);
@@ -468,13 +493,20 @@
         }
       }
 
-      var existing = getExistingTranslations(comp);
+      // Existing-translation lookups are scoped per containing comp, since
+      // translated duplicates live alongside their source in that same comp.
+      var existingCache = {};
+      function getExistingMap(c) {
+        if (!existingCache[c.id]) existingCache[c.id] = getExistingTranslations(c);
+        return existingCache[c.id];
+      }
 
       var conflictLangs = {};
       var conflictPairs = 0;
-      for (var si = 0; si < srcLayers.length; si++) {
+      for (var si = 0; si < srcEntries.length; si++) {
+        var eMap = getExistingMap(srcEntries[si].comp);
         for (var ci = 0; ci < selLangs.length; ci++) {
-          if (existing[srcLayers[si].id + ':' + selLangs[ci].code]) {
+          if (eMap[srcEntries[si].layer.id + ':' + selLangs[ci].code]) {
             conflictLangs[selLangs[ci].code] = selLangs[ci];
             conflictPairs++;
           }
@@ -492,7 +524,7 @@
 
         if (
           skipExisting &&
-          conflictPairs === srcLayers.length * selLangs.length
+          conflictPairs === srcEntries.length * selLangs.length
         ) {
           setStatus('Всі вибрані переклади вже існують');
           return;
@@ -505,8 +537,9 @@
       var ok = 0,
         errors = [];
 
-      for (var li = 0; li < srcLayers.length; li++) {
-        var src = srcLayers[li];
+      for (var li = 0; li < srcEntries.length; li++) {
+        var src = srcEntries[li].layer;
+        var ownerComp = srcEntries[li].comp;
         var orig = src.property('Source Text').value.text;
         if (!orig || !orig.replace(/\s/g, '')) continue;
 
@@ -514,12 +547,13 @@
 
         for (var gi = 0; gi < selLangs.length; gi++) {
           var lang = selLangs[gi];
+          var eMap = getExistingMap(ownerComp);
           var key = src.id + ':' + lang.code;
 
-          if (existing[key]) {
+          if (eMap[key]) {
             if (skipExisting) continue;
-            for (var l = comp.layers.length; l >= 1; l--) {
-              var layer = comp.layers[l];
+            for (var l = ownerComp.layers.length; l >= 1; l--) {
+              var layer = ownerComp.layers[l];
               if (layer.comment === 'TRANSLATED:' + lang.code + ':' + src.id) {
                 layer.remove();
               }
@@ -530,7 +564,7 @@
             '⏳ Шар ' +
               (li + 1) +
               '/' +
-              srcLayers.length +
+              srcEntries.length +
               ' | ' +
               lang.id +
               ' ' +
