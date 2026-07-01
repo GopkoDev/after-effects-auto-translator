@@ -7,6 +7,7 @@
     { code: 'fr', id: 'FR', name: 'Французька', color: 8 }, // Blue
     { code: 'pl', id: 'PL', name: 'Польська', color: 4 }, // Pink
     { code: 'tr', id: 'TR', name: 'Турецька', color: 11 }, // Orange
+    { code: 'ja', id: 'JA', name: 'Японська', color: 7 }, // Sea Foam
     { code: 'uk', id: 'UA', name: 'Українська', color: 5 }, // Lavender
   ];
 
@@ -397,6 +398,13 @@
       return out;
     }
 
+    // Fonts bundled with the OS by default — no install/verification needed
+    function getJapaneseFont() {
+      return $.os.indexOf('Windows') !== -1
+        ? 'YuGothicUI-Regular'
+        : 'HiraginoSans-W3';
+    }
+
     function makeLayer(src, text, langId, langCode, color) {
       var dup = src.duplicate();
       var label = text.length > 50 ? text.slice(0, 47) + '...' : text;
@@ -408,6 +416,7 @@
       var prop = dup.property('Source Text');
       var doc = prop.value;
       doc.text = text;
+      if (langCode === 'ja') doc.font = getJapaneseFont();
       prop.setValue(doc);
     }
 

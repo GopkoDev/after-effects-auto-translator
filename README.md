@@ -4,7 +4,7 @@ Free ScriptUI panel for After Effects that automatically translates selected tex
 
 ## Features
 
-- Translates into 8 languages simultaneously: ES, PT, IT, DE, FR, PL, TR, UA
+- Translates into 9 languages simultaneously: ES, PT, IT, DE, FR, PL, TR, UA, JA
 - Each translation is added as a separate disabled layer, color-coded by language
 - Handles long texts automatically by splitting into chunks (500 byte API limit)
 - Detects existing translations â€” skip or overwrite with one click
@@ -55,6 +55,7 @@ Enter your email in the **API Email** panel on first launch. No account needed â
 | PL   | Polish     | Pink        |
 | TR   | Turkish    | Orange      |
 | UA   | Ukrainian  | Lavender    |
+| JA   | Japanese   | Sea Foam    |
 
 ## License
 
