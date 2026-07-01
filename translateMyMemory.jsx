@@ -143,12 +143,16 @@
   }
 
   // ── Existing translation detection ───────────────────────
-  function getExistingLangCodes(comp) {
-    var found = {};
+  // Comment format: "TRANSLATED:<langCode>:<sourceLayerId>" — links each
+  // translated duplicate back to the specific source layer it came from,
+  // so translating one layer doesn't block/erase another layer's translation.
+  function getExistingTranslations(comp) {
+    var found = {}; // key: "<sourceLayerId>:<langCode>"
     for (var l = 1; l <= comp.layers.length; l++) {
       var layer = comp.layers[l];
       if (layer.comment && layer.comment.indexOf('TRANSLATED:') === 0) {
-        found[layer.comment.slice('TRANSLATED:'.length)] = true;
+        var parts = layer.comment.slice('TRANSLATED:'.length).split(':');
+        found[parts[1] + ':' + parts[0]] = true;
       }
     }
     return found;
@@ -411,7 +415,7 @@
       dup.name = '[' + langId + '] ' + label;
       dup.enabled = false;
       dup.label = color;
-      dup.comment = 'TRANSLATED:' + langCode;
+      dup.comment = 'TRANSLATED:' + langCode + ':' + src.id;
       dup.moveBefore(src);
       var prop = dup.property('Source Text');
       var doc = prop.value;
@@ -464,35 +468,34 @@
         }
       }
 
-      var existingCodes = getExistingLangCodes(comp);
-      var conflicts = [];
-      for (var ci = 0; ci < selLangs.length; ci++) {
-        if (existingCodes[selLangs[ci].code]) conflicts.push(selLangs[ci]);
-      }
+      var existing = getExistingTranslations(comp);
 
+      var conflictLangs = {};
+      var conflictPairs = 0;
+      for (var si = 0; si < srcLayers.length; si++) {
+        for (var ci = 0; ci < selLangs.length; ci++) {
+          if (existing[srcLayers[si].id + ':' + selLangs[ci].code]) {
+            conflictLangs[selLangs[ci].code] = selLangs[ci];
+            conflictPairs++;
+          }
+        }
+      }
+      var conflicts = [];
+      for (var code in conflictLangs) conflicts.push(conflictLangs[code]);
+
+      var skipExisting = true;
       if (conflicts.length) {
         var conflictIds = [];
         for (var ci = 0; ci < conflicts.length; ci++)
           conflictIds.push(conflicts[ci].id);
-        var skipExisting = showConflictDialog(conflictIds);
-        if (skipExisting) {
-          var filtered = [];
-          for (var ci = 0; ci < selLangs.length; ci++) {
-            if (!existingCodes[selLangs[ci].code]) filtered.push(selLangs[ci]);
-          }
-          selLangs = filtered;
-          if (!selLangs.length) {
-            setStatus('Всі вибрані переклади вже існують');
-            return;
-          }
-        } else {
-          for (var l = comp.layers.length; l >= 1; l--) {
-            var layer = comp.layers[l];
-            if (!layer.comment || layer.comment.indexOf('TRANSLATED:') !== 0)
-              continue;
-            var layerCode = layer.comment.slice('TRANSLATED:'.length);
-            if (existingCodes[layerCode]) layer.remove();
-          }
+        skipExisting = showConflictDialog(conflictIds);
+
+        if (
+          skipExisting &&
+          conflictPairs === srcLayers.length * selLangs.length
+        ) {
+          setStatus('Всі вибрані переклади вже існують');
+          return;
         }
       }
 
@@ -511,6 +514,18 @@
 
         for (var gi = 0; gi < selLangs.length; gi++) {
           var lang = selLangs[gi];
+          var key = src.id + ':' + lang.code;
+
+          if (existing[key]) {
+            if (skipExisting) continue;
+            for (var l = comp.layers.length; l >= 1; l--) {
+              var layer = comp.layers[l];
+              if (layer.comment === 'TRANSLATED:' + lang.code + ':' + src.id) {
+                layer.remove();
+              }
+            }
+          }
+
           setStatus(
             '⏳ Шар ' +
               (li + 1) +
